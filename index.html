@@ -1,8 +1,17 @@
 <!DOCTYPE html>
+<!--
+  METER LAB · 3D 万用表电磁学实验台
+  作者：YangHA2 · 2026
+  单文件离线版：three.js r165 已内联，双击即可运行，不需要联网。
+  本文件由 src/app.js + src/style.css + src/shell.html 通过 _tools/build.py 生成。
+-->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="author" content="YangHA2">
+<meta name="generator" content="METER LAB build.py">
+<meta name="description" content="3D 万用表电磁学实验台（单文件离线版）· YangHA2 · 2026">
 <title>万用表测量实验台 · 3D</title>
 <style>:root{
   --bg:#0b0f14;
@@ -238,6 +247,20 @@ canvas#cv.placing{cursor:crosshair}
   .brand span{display:none}
 }
 
+/* 作者角标（A）：金属蚀刻牌样式，常驻、不挡操作 */
+#sign{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:15;
+  display:flex;align-items:center;gap:9px;padding:5px 12px;border-radius:10px;
+  border:1px solid rgba(120,160,190,.30);
+  background:linear-gradient(180deg,rgba(26,37,50,.82),rgba(13,19,27,.90));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 4px 14px rgba(0,0,0,.35);
+  color:#8ea6ba;font:10.5px/1 ui-sans-serif,system-ui,sans-serif;letter-spacing:.18em;
+  text-transform:uppercase;pointer-events:none;user-select:none;
+}
+#sign b{color:#dceff8;font-weight:600;letter-spacing:.14em}
+#sign .dot{width:3px;height:3px;border-radius:50%;background:#4fd1c5;opacity:.85}
+html.is-mobile #sign{bottom:66px;font-size:9.5px;padding:4px 10px;gap:7px}
+
 /* ===== 手机 / 触屏：底部导航 + 面板抽屉（由 JS 切 html.is-mobile） ===== */
 #dock{display:none}
 html.is-mobile #dock{
@@ -393,6 +416,11 @@ html.is-mobile #range-list{grid-template-columns:repeat(3,1fr)}
     <p class="dnote" id="build-tag">构建版本：—</p>
     <button id="help-close" class="ghost">知道了</button>
   </div>
+</div>
+
+<!-- 作者角标（A）：常驻右下，不挡操作 -->
+<div id="sign" title="METER LAB · 作者 YangHA2 · 2026">
+  <span>METER LAB</span><i class="dot"></i><b>YangHA2</b><i class="dot"></i><span>2026</span>
 </div>
 
 <!-- 手机端底部导航（触屏时由 JS 显示） -->
@@ -56605,6 +56633,36 @@ window.RoomEnvironment = RoomEnvironment;
     rheostat: { x: 3.15, z: 0.95 }
   };
 
+  /* ---------- 作者暗印（C）：每台器件底座边缘一行小字，放大才看得清 ---------- */
+  var STAMP_TEX = null;
+  function stampTexture() {
+    if (STAMP_TEX) return STAMP_TEX;
+    var c = document.createElement('canvas');
+    c.width = 256; c.height = 64;
+    var g2 = c.getContext('2d');
+    g2.clearRect(0, 0, 256, 64);
+    g2.fillStyle = 'rgba(226,236,244,0.92)';
+    g2.font = '600 30px ui-sans-serif, system-ui, sans-serif';
+    g2.textAlign = 'center';
+    g2.textBaseline = 'middle';
+    g2.fillText('YangHA2', 128, 34);
+    STAMP_TEX = new THREE.CanvasTexture(c);
+    STAMP_TEX.anisotropy = 4;
+    return STAMP_TEX;
+  }
+  function addMakerStamp(O, type) {
+    // 刀闸底座高 0.10，其余 0.08；暗印要浮在垫面上
+    var y = (type === 'knifeSwitch') ? 0.106 : 0.086;
+    var m = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.24, 0.060),
+      new THREE.MeshBasicMaterial({ map: stampTexture(), transparent: true, opacity: 0.42, depthWrite: false })
+    );
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(O.x + 0.28, y, O.z + 0.155);
+    m.userData.makerStamp = true;      // 不参与拾取，也不算占地
+    scene.add(m);
+  }
+
   function buildDeviceInstance(d) {
     var g = new THREE.Group();
     var O = TYPE_ORIGIN[d.type] || { x: 0, z: 0 };
@@ -56617,6 +56675,7 @@ window.RoomEnvironment = RoomEnvironment;
       d.pins.forEach(function (p) {
         buildTerminal({ id: p.index, x: O.x + p.lx, z: O.z + p.lz, col: p.col, name: p.name, dev: d.id });
       });
+      addMakerStamp(O, d.type);          // 底座边缘的作者暗印（C）
     } finally { scene.add = origAdd; }
     for (var ci = 0; ci < g.children.length; ci++) g.children[ci].position.sub(base);
     g.position.set(d.x, 0, d.z);
@@ -58076,7 +58135,15 @@ window.RoomEnvironment = RoomEnvironment;
 
   // 万用表插孔世界坐标 = 表体变换 × 插孔局部坐标（挪表，表笔线跟着走）
   /* ---------- 4.8e 器件间距：少于 0.10 视为过近，松手自动避让 ---------- */
-  var BUILD_TAG = '2026-11-01 16:40 · 触屏适配(底部导航/抽屉/旋转删除)';
+  var BUILD_TAG = '2026-11-01 17:12 · 触屏适配 + 作者署名(A角标/D源码/C暗印)';
+  // 源码水印（D）：谁查看源码或控制台都能确认作者
+  window.__SIGN__ = {
+    author: 'YangHA2',
+    project: 'METER LAB · 3D 万用表电磁学实验台',
+    year: 2026,
+    build: BUILD_TAG,
+    note: '单文件离线版；three.js r165 内联；由 src/ 构建生成。'
+  };
   window.__BUILD__ = BUILD_TAG;
   try {
     console.log('[meter-lab] build:', BUILD_TAG);
